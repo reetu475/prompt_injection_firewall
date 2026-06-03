@@ -3,9 +3,8 @@ services:
     name: prompt-firewall-backend
     env: node
     plan: starter
-    rootDir: backend
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: npm --workspace backend start
     envVars:
       - key: NODE_ENV
         value: production
