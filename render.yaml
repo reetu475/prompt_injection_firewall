@@ -4,7 +4,7 @@ services:
     env: node
     plan: starter
     buildCommand: npm install
-    startCommand: npm --workspace backend start
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
