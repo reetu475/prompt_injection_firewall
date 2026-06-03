@@ -1,0 +1,21 @@
+{
+  "name": "prompt-injection-firewall-rag",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "build": "npm --workspace frontend run build",
+    "start": "npm --workspace backend start",
+    "lint": "npm --workspace backend run lint && npm --workspace backend run test:firewall && npm --workspace frontend run lint"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
