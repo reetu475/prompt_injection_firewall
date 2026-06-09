@@ -2,6 +2,7 @@ import "./loadEnv.js";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import { PDFParse } from "pdf-parse";
 import { randomUUID } from "crypto";
 import { createAuditStore } from "./stores/auditStore.js";
 import { createVectorStore } from "./stores/vectorStore.js";
@@ -123,21 +124,41 @@ app.post("/api/rag/query", async (req, res) => {
 });
 
 app.post("/api/documents/ingest", async (req, res) => {
-  const { title = "Untitled document", content = "", collection = "default" } = req.body;
-  const decision = await evaluateRisk(content, "document");
+  const { title = "Untitled document", content = "", collection = "default", pdfData = "" } = req.body;
+  let documentContent = content;
 
-  await logIfRisky("document", `${title}\n${content}`, decision);
+  if (pdfData) {
+    try {
+      const base64Data = pdfData.split(";base64,").pop();
+      const buffer = Buffer.from(base64Data, "base64");
+      const parser = new PDFParse({ data: buffer });
+      const parsedText = await parser.getText();
+      documentContent = parsedText.text || "";
+      await parser.destroy();
+    } catch (err) {
+      console.error("PDF extraction error:", err);
+      return res.status(400).json({
+        stored: false,
+        message: "Failed to parse PDF document. Ensure the file is not corrupted."
+      });
+    }
+  }
+
+  const decision = await evaluateRisk(documentContent, "document");
+
+  await logIfRisky("document", `${title}\n${documentContent}`, decision);
   await traceEvaluation({ mode: "document", decision });
 
   if (decision.blocked || decision.severity === "critical" || decision.riskScore > 80) {
     return res.status(403).json({
       stored: false,
       decision: publicDecision(decision),
-      message: "Unsafe document rejected before vector storage."
+      message: "Unsafe document rejected before vector storage.",
+      parsedText: documentContent
     });
   }
 
-  const sanitized = sanitizeInput(content);
+  const sanitized = sanitizeInput(documentContent);
   const document = await vectorStore.upsert({
     id: randomUUID(),
     collection,
@@ -153,7 +174,8 @@ app.post("/api/documents/ingest", async (req, res) => {
   res.json({
     stored: true,
     document,
-    decision: publicDecision(decision)
+    decision: publicDecision(decision),
+    parsedText: documentContent
   });
 });
 
